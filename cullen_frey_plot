@@ -1,0 +1,20 @@
+library(fitdistrplus)
+
+df <- read.csv("file_pairwise_values.csv")
+
+pdf("cullen_frey_plots.pdf")
+
+for (i in 1:nrow(df)) {
+  pair_name <- as.character(df$AminoAcid_Pair[i])
+  values <- as.numeric(df[i, 2:ncol(df)])
+  values <- values[!is.na(values) & is.finite(values)]
+
+  if (length(values) >= 10) {
+    tryCatch({
+      descdist(values, boot = 500)
+      title(main = paste("Cullen-Frey Plot:", pair_name))
+    }, error = function(e) { })
+  }
+}
+
+dev.off()
