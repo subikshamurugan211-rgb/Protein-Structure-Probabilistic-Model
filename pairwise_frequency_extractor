@@ -1,0 +1,26 @@
+import pandas as pd
+import os
+from glob import glob
+import itertools
+
+amino_acids = list("ACDEFGHIKLMNPQRSTVWY")
+all_pairs = [f"{aa1}-{aa2}" for aa1, aa2 in itertools.product(amino_acids, repeat=2)]
+
+pairwise_data = {pair: [] for pair in all_pairs}
+matrix_dir = "spatial_pairwise_matrices"
+matrix_files = sorted(glob(os.path.join(matrix_dir, "*_spatial_matrix.csv")))
+
+for file in matrix_files:
+    df = pd.read_csv(file, index_col=0)
+    for aa1 in amino_acids:
+        for aa2 in amino_acids:
+            pair = f"{aa1}-{aa2}"
+            value = df.loc[aa1, aa2]
+            pairwise_data[pair].append(value)
+
+output_df = pd.DataFrame.from_dict(pairwise_data, orient='index')
+output_df.reset_index(inplace=True)
+output_df.columns = ['AminoAcid_Pair'] + [f"Struct_{i+1}" for i in range(len(matrix_files))]
+
+output_df.to_csv("pairwise_values_by_pair_rowwise.csv", index=False)
+print("Pairwise values file created.")
