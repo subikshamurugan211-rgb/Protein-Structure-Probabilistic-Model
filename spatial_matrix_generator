@@ -75,3 +75,4 @@ for pdb_id in pdb_ids:
 
     except Exception as e:
         print(f"Error with {pdb_id.upper()}: {e}")
+print("Normalization is handled automatically in spatial_matrix_generator.py")
