@@ -1,0 +1,77 @@
+import pandas as pd
+import numpy as np
+from Bio.PDB import PDBList, PDBParser, is_aa
+from Bio.SeqUtils import seq1
+import os
+
+excel_path = "file.xlsx"
+pdb_column = "PDB_ID"
+download_dir = "pdbs"
+output_dir = "spatial_pairwise_matrices"
+normalized_dir = "normalized_matrices"
+distance_threshold = 8.0
+
+df_pdbs = pd.read_excel(excel_path)
+pdb_ids = df_pdbs[pdb_column].astype(str).str.lower().tolist()
+amino_acids = list("ACDEFGHIKLMNPQRSTVWY")
+aa_index = {aa: i for i, aa in enumerate(amino_acids)}
+
+pdbl = PDBList()
+p = PDBParser(QUIET=True)
+
+os.makedirs(download_dir, exist_ok=True)
+os.makedirs(output_dir, exist_ok=True)
+os.makedirs(normalized_dir, exist_ok=True)
+
+for pdb_id in pdb_ids:
+    try:
+        print(f"\nProcessing {pdb_id.upper()}...")
+        pdb_file = pdbl.retrieve_pdb_file(pdb_id, pdir=download_dir, file_format="pdb")
+
+        if not os.path.isfile(pdb_file):
+            print(f"Skipping {pdb_id.upper()} — file not found.")
+            continue
+
+        structure = p.get_structure(pdb_id, pdb_file)
+        residues = []
+        ca_coords = []
+
+        for model in structure:
+            for chain in model:
+                for residue in chain:
+                    if is_aa(residue, standard=True) and 'CA' in residue:
+                        try:
+                            aa = seq1(residue.get_resname())
+                            residues.append(aa)
+                            ca_coords.append(residue['CA'].get_coord())
+                        except:
+                            continue
+
+        if len(residues) < 2:
+            print(f"Not enough residues in {pdb_id.upper()}. Skipping.")
+            continue
+
+        matrix = np.zeros((20, 20), dtype=int)
+
+        for i in range(len(residues)):
+            for j in range(i + 1, len(residues)):
+                dist = np.linalg.norm(ca_coords[i] - ca_coords[j])
+                if dist <= distance_threshold:
+                    a1, a2 = residues[i], residues[j]
+                    if a1 in aa_index and a2 in aa_index:
+                        matrix[aa_index[a1]][aa_index[a2]] += 1
+                        matrix[aa_index[a2]][aa_index[a1]] += 1
+
+        matrix_df = pd.DataFrame(matrix, index=amino_acids, columns=amino_acids)
+        matrix_df.to_csv(os.path.join(output_dir, f"{pdb_id.upper()}_spatial_matrix.csv"))
+
+        total = matrix.sum()
+        normalized_matrix = matrix / total if total > 0 else matrix
+
+        pd.DataFrame(normalized_matrix, index=amino_acids, columns=amino_acids)\
+            .to_csv(os.path.join(normalized_dir, f"{pdb_id.upper()}_normalized_matrix.csv"))
+
+        print(f"Saved matrices for {pdb_id.upper()}")
+
+    except Exception as e:
+        print(f"Error with {pdb_id.upper()}: {e}")
