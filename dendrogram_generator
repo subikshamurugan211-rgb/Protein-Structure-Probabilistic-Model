@@ -1,0 +1,16 @@
+library(stats)
+library(ggplot2)
+
+df <- read.csv("best_fit_summary.csv")
+
+gamma_pairs <- df[df$Best_Fit == "Gamma",]
+
+params <- gamma_pairs[, c("Shape", "Rate")]
+row.names(params) <- gamma_pairs$AminoAcid_Pair
+
+d <- dist(params)
+hc <- hclust(d)
+
+pdf("gamma_dendrogram.pdf")
+plot(hc, main="Gamma Distribution Clustering")
+dev.off()
