@@ -1,0 +1,30 @@
+import os
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+
+normalized_dir = "normalized_matrices"
+output_plot_dir = "boxplots_aa_pairs"
+amino_acids = list("ACDEFGHIKLMNPQRSTVWY")
+
+os.makedirs(output_plot_dir, exist_ok=True)
+
+pairwise_data = {(aa1, aa2): [] for aa1 in amino_acids for aa2 in amino_acids}
+
+for file in os.listdir(normalized_dir):
+    if file.endswith(".csv"):
+        df = pd.read_csv(os.path.join(normalized_dir, file), index_col=0)
+        for aa1 in amino_acids:
+            for aa2 in amino_acids:
+                pairwise_data[(aa1, aa2)].append(df.loc[aa1, aa2])
+
+for (aa1, aa2), values in pairwise_data.items():
+    plt.figure(figsize=(5, 5))
+    sns.boxplot(y=values)
+    plt.title(f"Boxplot: {aa1}-{aa2}")
+    plt.ylabel("Normalized Frequency")
+    plt.grid(True, linestyle='--', alpha=0.5)
+    plt.savefig(os.path.join(output_plot_dir, f"{aa1}_{aa2}_boxplot.png"))
+    plt.close()
+
+print("All 400 boxplots generated.")
