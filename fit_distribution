@@ -1,0 +1,40 @@
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(fitdistrplus)
+library(tidyr)
+
+df <- read_csv("pairwise_distribution_data.csv")
+
+df_long <- df %>%
+  pivot_longer(-AminoAcid_Pair,
+               names_to = "Structure",
+               values_to = "value")
+
+fit_stats <- data.frame()
+
+pairs <- unique(df_long$AminoAcid_Pair)
+
+for (pair in pairs) {
+  values <- df_long %>% filter(AminoAcid_Pair == pair) %>% pull(value)
+  values <- values[is.finite(values)]
+
+  if (length(values) > 1) {
+    tryCatch({
+      fit_norm <- fitdist(values, "norm")
+      fit_exp  <- fitdist(values, "exp")
+      fit_gamma <- fitdist(values, "gamma")
+
+      stats <- data.frame(
+        AminoAcid_Pair = pair,
+        Distribution = c("Normal", "Exponential", "Gamma"),
+        AIC = c(fit_norm$aic, fit_exp$aic, fit_gamma$aic),
+        BIC = c(fit_norm$bic, fit_exp$bic, fit_gamma$bic)
+      )
+
+      fit_stats <- rbind(fit_stats, stats)
+    }, error=function(e){})
+  }
+}
+
+write.csv(fit_stats, "fit_statistics.csv", row.names=FALSE)
